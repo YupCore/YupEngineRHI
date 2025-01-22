@@ -169,7 +169,7 @@ add_custom_command(
         echo "Assets directory copied."
 
         # Compress Assets directory and clean up
-        && "${ZIP_EXECUTABLE}" a -mx=0 -mmt=16 "${ZIP_FILE}" "${ASSETS_OUTPUT_DIR}/*" && # remember to set to 9 for release build
+        && "${ZIP_EXECUTABLE}" a -mx=9 -mmt=16 "${ZIP_FILE}" "${ASSETS_OUTPUT_DIR}/*" && # remember to set to 9 for release build
         ${CMAKE_COMMAND} -E remove_directory "${ASSETS_OUTPUT_DIR}" &&
         echo "Assets directory compressed and removed."
 

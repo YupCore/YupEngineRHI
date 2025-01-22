@@ -114,6 +114,7 @@ public:
         : Super(dvm),
         m_ui(ui)
     {
+        SetAsynchronousLoadingEnabled(true);
 
         m_ZipFS = std::make_shared<vfs::ZipFile>(app::GetDirectoryWithExecutable() / "Assets.zip");
 
@@ -145,7 +146,6 @@ public:
             nvrhi::FormatSupport::Texture       |
             nvrhi::FormatSupport::DepthStencil  |
             nvrhi::FormatSupport::ShaderLoad;
-
 
         nvrhi::Format shadowMapFormat = nvrhi::utils::ChooseFormat(GetDevice(), shadowMapFeatures, shadowMapFormats, std::size(shadowMapFormats));
 
@@ -205,7 +205,6 @@ public:
         m_VideoRenderer = std::make_unique<VideoRenderer>(GetDevice(), m_ZipFS, "Videos/Intro_Test.mkv");
         GetDeviceManager()->SetEnableRenderDuringWindowMovement(true);
 
-        SetAsynchronousLoadingEnabled(false);
         m_SceneDir = "Models";
         m_SceneFilesAvailable = FindScenes(*m_ZipFS, m_SceneDir);
         SetCurrentSceneName(app::FindPreferredScene(m_SceneFilesAvailable, "MegaScena.gltf"));
@@ -353,7 +352,7 @@ public:
 
         auto audioSourceNode = std::make_shared<SceneGraphNode>();
         audioSourceNode->SetName("AudioSource2D");
-        m_source3D = std::make_shared<AudioSource>("Sounds/StarRail_Science Fiction.ogg", 1.f, false, false, 2.f);
+        m_source3D = std::make_shared<AudioSource>("Sounds/StarRail_Science Fiction.ogg", 1.f, true, false, 2.f);
         audioSourceNode->SetLeaf(m_source3D);
 
         auto sceneGraph = m_Scene->GetSceneGraph();

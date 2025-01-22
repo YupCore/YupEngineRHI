@@ -79,6 +79,15 @@ void UIRenderer::buildUI(void)
         if (m_SelectedLight)
         {
             app::LightEditor(*m_SelectedLight);
+            std::string formatedStr = std::format("Resulting vector: {:.3f},{:.3f},{:.3f}", m_SelectedLight->GetDirection().x, m_SelectedLight->GetDirection().y, m_SelectedLight->GetDirection().z);
+            
+            // Display the string as a read-only text box
+            ImGui::InputText(
+                "##vectorOutput",                     // Hidden label with a unique ID
+                formatedStr.data(),                 // Pointer to the text buffer
+                formatedStr.size() + 1,             // Buffer size (including null terminator)
+                ImGuiInputTextFlags_ReadOnly         // Read-only flag
+            );
         }
     }
 
