@@ -240,7 +240,7 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
     // Read the file into memory
     auto fileBlob = filesystem->readFile(videoPath);
 
-    auto data = static_cast<uint8_t*>(malloc(fileBlob->size()));
+    auto data = new uint8_t[fileBlob->size()];
     memcpy_s(data, fileBlob->size(), fileBlob->data(), fileBlob->size());
 
     // Initialize the buffer context
@@ -252,7 +252,7 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
 
     formatCtx = avformat_alloc_context();
     if (!formatCtx) {
-        free(data);
+        delete[] data;
         delete bufferContext;
         throw std::runtime_error("Could not allocate format context.");
     }
@@ -261,7 +261,7 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
     avioBuffer = static_cast<uint8_t*>(av_malloc(4096));
     if (!avioBuffer) {
         avformat_free_context(formatCtx);
-        free(data);
+        delete[] data;
         delete bufferContext;
         throw std::runtime_error("Could not allocate AVIOContext buffer.");
     }
@@ -271,7 +271,7 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
     if (!avioCtx) {
         av_free(avioBuffer);
         avformat_free_context(formatCtx);
-        free(data);
+        delete[] data;
         delete bufferContext;
         throw std::runtime_error("Could not allocate AVIOContext.");
     }
@@ -283,7 +283,7 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
         av_freep(&avioCtx->buffer);
         av_freep(&formatCtx->pb);
         avformat_free_context(formatCtx);
-        free(data);
+        delete[] data;
         delete bufferContext;
         throw std::runtime_error("Could not open input from memory.");
     }
@@ -485,7 +485,6 @@ void VideoRenderer::UninitFFMPEG()
     while (!audioBufferQueue.empty())
         audioBufferQueue.clear();
     swr_free(&swrCtx);
-    free(bufferContext->data);
     delete bufferContext;
     avcodec_free_context(&videoCodecCtx);
     avcodec_free_context(&audioCodecCtx);

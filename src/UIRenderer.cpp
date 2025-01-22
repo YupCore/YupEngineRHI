@@ -47,6 +47,7 @@ void UIRenderer::buildUI(void)
         ImGui::SliderFloat("Glow Intensity", &m_ui.SkyParams.glowIntensity, 0.f, 1.f);
         ImGui::SliderFloat("Horizon Size", &m_ui.SkyParams.horizonSize, 0.f, 90.f);
     }
+    ImGui::Checkbox("Enable DefferedShading", &m_ui.UseDeferredShading);
     ImGui::Checkbox("Enable SSAO", &m_ui.EnableSsao);
     ImGui::Checkbox("Enable FXAA", &m_ui.EnableFXAA);
     ImGui::Checkbox("Enable Shadows", &m_ui.EnableShadows);
@@ -88,7 +89,7 @@ void UIRenderer::buildUI(void)
         ImGui::SameLine();
         if (ImGui::Button(probe->name.c_str()))
         {
-            m_RenderCallback(*probe);
+            m_ui.m_RenderCallback(*probe);
         }
     }
 

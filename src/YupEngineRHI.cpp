@@ -114,7 +114,6 @@ public:
         : Super(dvm),
         m_ui(ui)
     {
-        SetAsynchronousLoadingEnabled(true);
 
         m_ZipFS = std::make_shared<vfs::ZipFile>(app::GetDirectoryWithExecutable() / "Assets.zip");
 
@@ -147,6 +146,7 @@ public:
             nvrhi::FormatSupport::DepthStencil  |
             nvrhi::FormatSupport::ShaderLoad;
 
+
         nvrhi::Format shadowMapFormat = nvrhi::utils::ChooseFormat(GetDevice(), shadowMapFeatures, shadowMapFormats, std::size(shadowMapFormats));
 
         m_ShadowMap = std::make_shared<CascadedShadowMap>(GetDevice(), 2048, 4, 0, shadowMapFormat);
@@ -157,13 +157,27 @@ public:
 
         DepthPass::CreateParameters shadowDepthParams;
         shadowDepthParams.slopeScaledDepthBias = 4.f;
-        shadowDepthParams.depthBias = 200;
+        shadowDepthParams.depthBias = 100;
         m_ShadowDepthPass = std::make_shared<DepthPass>(GetDevice(), m_CommonPasses);
         m_ShadowDepthPass->Init(*m_ShaderFactory, shadowDepthParams);
 
         m_CommandList = GetDevice()->createCommandList();
 
         window = GetDeviceManager()->GetWindow();
+
+        m_Camera.SetMoveSpeed(3.0f);
+        m_Camera.LookAt(
+            float3(0.f, 0.0f, -3.f),
+            float3(1.f, 0.f, 0.f));
+        m_CameraVerticalFov = 60.f;
+
+        m_ui.SkyParams.brightness = 0.776f;
+        m_ui.SkyParams.glowSize = 20;
+        m_ui.SkyParams.glowSharpness = 4;
+        m_ui.SkyParams.glowIntensity = 0.1f;
+        m_ui.SkyParams.horizonSize = 25;
+        m_PreviousViewsValid = false;
+        m_Camera.stopRotation = true;
 
         int windowWidth, windowHeight;
         GetDeviceManager()->GetWindowDimensions(windowWidth, windowHeight);
@@ -191,23 +205,10 @@ public:
         m_VideoRenderer = std::make_unique<VideoRenderer>(GetDevice(), m_ZipFS, "Videos/Intro_Test.mkv");
         GetDeviceManager()->SetEnableRenderDuringWindowMovement(true);
 
+        SetAsynchronousLoadingEnabled(false);
         m_SceneDir = "Models";
         m_SceneFilesAvailable = FindScenes(*m_ZipFS, m_SceneDir);
         SetCurrentSceneName(app::FindPreferredScene(m_SceneFilesAvailable, "MegaScena.gltf"));
-
-        m_Camera.SetMoveSpeed(3.0f);
-        m_Camera.LookAt(
-            float3(0.f, 0.0f, -3.f),
-            float3(1.f, 0.f, 0.f));
-        m_CameraVerticalFov = 60.f;
-
-        m_ui.SkyParams.brightness = 0.776f;
-        m_ui.SkyParams.glowSize = 20;
-        m_ui.SkyParams.glowSharpness = 4;
-        m_ui.SkyParams.glowIntensity = 0.1f;
-        m_ui.SkyParams.horizonSize = 25;
-        m_PreviousViewsValid = false;
-        m_Camera.stopRotation = true;
 
     }
 
@@ -358,6 +359,10 @@ public:
         auto sceneGraph = m_Scene->GetSceneGraph();
         sceneGraph->Attach(sceneGraph->GetRootNode(), audioSourceNode);
         m_source3D->Play();
+
+        m_ui.lights = GetScene()->GetSceneGraph()->GetLights();
+        m_ui.LightProbes = GetLightProbes();
+        m_ui.m_RenderCallback = [this](LightProbe& probe) { RenderLightProbe(probe); };
 
         PrintSceneGraph(m_Scene->GetSceneGraph()->GetRootNode());
     }
@@ -527,7 +532,7 @@ public:
         m_Scene->RefreshSceneGraph(GetFrameIndex());
 
         bool exposureResetRequired = false;
-        
+
         {
             uint width = windowWidth;
             uint height = windowHeight;
@@ -542,7 +547,7 @@ public:
                 m_BindingCache->Clear();
                 m_RenderTargets = std::make_unique<RenderTargets>();
                 m_RenderTargets->Init(GetDevice(), uint2(width, height), sampleCount, true, true);
-                
+
                 needNewPasses = true;
             }
 
@@ -557,7 +562,7 @@ public:
                 needNewPasses = true;
             }
 
-            if(needNewPasses)
+            if (needNewPasses)
             {
                 CreateRenderPasses(exposureResetRequired);
             }
@@ -565,16 +570,13 @@ public:
             m_ui.ShaderReloadRequested = false;
         }
 
-        m_ui.lights = m_Scene->GetSceneGraph()->GetLights();
-        m_ui.LightProbes = GetLightProbes();
-
         m_CommandList->open();
 
         m_Scene->RefreshBuffers(m_CommandList, GetFrameIndex());
-            
+
         nvrhi::ITexture* framebufferTexture = framebuffer->getDesc().colorAttachments[0].texture;
-        m_CommandList->clearTextureFloat(framebufferTexture, nvrhi::AllSubresources, nvrhi::Color(1.f));
-        
+        m_CommandList->clearTextureFloat(framebufferTexture, nvrhi::AllSubresources, nvrhi::Color(0.f));
+
         m_AmbientTop = m_ui.AmbientIntensity * m_ui.SkyParams.skyColor * m_ui.SkyParams.brightness;
         m_AmbientBottom = m_ui.AmbientIntensity * m_ui.SkyParams.groundColor * m_ui.SkyParams.brightness;
         if (m_ui.EnableShadows)
@@ -583,7 +585,7 @@ public:
             box3 sceneBounds = m_Scene->GetSceneGraph()->GetRootNode()->GetGlobalBoundingBox();
 
             frustum projectionFrustum = m_View->GetProjectionFrustum();
-            const float maxShadowDistance = 100.f;
+            const float maxShadowDistance = 1500.f;
 
             dm::affine3 viewMatrixInv = m_View->GetChildView(ViewType::PLANAR, 0)->GetInverseViewMatrix();
 
@@ -594,11 +596,11 @@ public:
 
             DepthPass::Context context;
 
-            RenderCompositeView(m_CommandList, 
-                &m_ShadowMap->GetView(), nullptr, 
+            RenderCompositeView(m_CommandList,
+                &m_ShadowMap->GetView(), nullptr,
                 *m_ShadowFramebuffer,
                 m_Scene->GetSceneGraph()->GetRootNode(),
-                *m_OpaqueDrawStrategy, 
+                *m_OpaqueDrawStrategy,
                 *m_ShadowDepthPass,
                 context,
                 "ShadowMap");
@@ -609,7 +611,6 @@ public:
         }
 
         std::vector<std::shared_ptr<LightProbe>> lightProbes;
-
         if (m_ui.EnableLightProbe)
         {
             for (auto probe : m_LightProbes)
@@ -628,69 +629,88 @@ public:
         if (exposureResetRequired)
             m_ToneMappingPass->ResetExposure(m_CommandList, 0.5f);
 
-
         ForwardShadingPass::Context forwardContext;
-        if (m_ui.EnableTranslucency)
+
+        if (!m_ui.UseDeferredShading || m_ui.EnableTranslucency)
         {
             m_ForwardPass->PrepareLights(forwardContext, m_CommandList, m_Scene->GetSceneGraph()->GetLights(), m_AmbientTop, m_AmbientBottom, lightProbes);
         }
 
-        GBufferFillPass::Context gbufferContext;
-
-        RenderCompositeView(m_CommandList,
-            m_View.get(), m_ViewPrevious.get(),
-            *m_RenderTargets->GBufferFramebuffer,
-            m_Scene->GetSceneGraph()->GetRootNode(),
-            *m_OpaqueDrawStrategy,
-            *m_GBufferPass,
-            gbufferContext,
-            "GBufferFill");
-
-        nvrhi::ITexture* ambientOcclusionTarget = nullptr;
-        if (m_ui.EnableSsao && m_SsaoPass)
+        if (m_ui.UseDeferredShading)
         {
-            m_SsaoPass->Render(m_CommandList, m_ui.SsaoParams, *m_View);
-            ambientOcclusionTarget = m_RenderTargets->AmbientOcclusion;
+            GBufferFillPass::Context gbufferContext;
+
+            RenderCompositeView(m_CommandList,
+                m_View.get(), m_ViewPrevious.get(),
+                *m_RenderTargets->GBufferFramebuffer,
+                m_Scene->GetSceneGraph()->GetRootNode(),
+                *m_OpaqueDrawStrategy,
+                *m_GBufferPass,
+                gbufferContext,
+                "GBufferFill");
+
+            nvrhi::ITexture* ambientOcclusionTarget = nullptr;
+            if (m_ui.EnableSsao && m_SsaoPass)
+            {
+                m_SsaoPass->Render(m_CommandList, m_ui.SsaoParams, *m_View);
+                ambientOcclusionTarget = m_RenderTargets->AmbientOcclusion;
+            }
+
+            DeferredLightingPass::Inputs deferredInputs;
+            deferredInputs.SetGBuffer(*m_RenderTargets);
+            deferredInputs.ambientOcclusion = m_ui.EnableSsao ? m_RenderTargets->AmbientOcclusion : nullptr;
+            deferredInputs.ambientColorTop = m_AmbientTop;
+            deferredInputs.ambientColorBottom = m_AmbientBottom;
+            deferredInputs.lights = &m_Scene->GetSceneGraph()->GetLights();
+            deferredInputs.lightProbes = m_ui.EnableLightProbe ? &m_LightProbes : nullptr;
+            deferredInputs.output = m_RenderTargets->HdrColor;
+
+            m_DeferredLightingPass->Render(m_CommandList, *m_View, deferredInputs);
+        }
+        else
+        {
+            RenderCompositeView(m_CommandList,
+                m_View.get(), m_ViewPrevious.get(),
+                *m_RenderTargets->ForwardFramebuffer,
+                m_Scene->GetSceneGraph()->GetRootNode(),
+                *m_OpaqueDrawStrategy,
+                *m_ForwardPass,
+                forwardContext,
+                "ForwardOpaque");
         }
 
-        DeferredLightingPass::Inputs deferredInputs;
-        deferredInputs.SetGBuffer(*m_RenderTargets);
-        deferredInputs.ambientOcclusion = m_ui.EnableSsao ? m_RenderTargets->AmbientOcclusion : nullptr;
-        deferredInputs.ambientColorTop = m_AmbientTop;
-        deferredInputs.ambientColorBottom = m_AmbientBottom;
-        deferredInputs.lights = &m_Scene->GetSceneGraph()->GetLights();
-        deferredInputs.lightProbes = m_ui.EnableLightProbe ? &m_LightProbes : nullptr;
-        deferredInputs.output = m_RenderTargets->HdrColor;
+        {
+            m_CommandList->clearTextureUInt(m_RenderTargets->MaterialIDs, nvrhi::AllSubresources, 0xffff);
 
-        m_DeferredLightingPass->Render(m_CommandList, *m_View, deferredInputs);
+            MaterialIDPass::Context materialIdContext;
 
-        m_CommandList->clearTextureUInt(m_RenderTargets->MaterialIDs, nvrhi::AllSubresources, 0xffff);
+            RenderCompositeView(m_CommandList,
+                m_View.get(), m_ViewPrevious.get(),
+                *m_RenderTargets->MaterialIDFramebuffer,
+                m_Scene->GetSceneGraph()->GetRootNode(),
+                *m_OpaqueDrawStrategy,
+                *m_MaterialIDPass,
+                materialIdContext,
+                "MaterialID");
 
-        MaterialIDPass::Context materialIdContext;
-
-        RenderCompositeView(m_CommandList,
-            m_View.get(), m_ViewPrevious.get(),
-            *m_RenderTargets->MaterialIDFramebuffer,
-            m_Scene->GetSceneGraph()->GetRootNode(),
-            *m_OpaqueDrawStrategy,
-            *m_MaterialIDPass,
-            materialIdContext,
-            "MaterialID");
+            if (m_ui.EnableTranslucency)
+            {
+                RenderCompositeView(m_CommandList,
+                    m_View.get(), m_ViewPrevious.get(),
+                    *m_RenderTargets->MaterialIDFramebuffer,
+                    m_Scene->GetSceneGraph()->GetRootNode(),
+                    *m_TransparentDrawStrategy,
+                    *m_MaterialIDPass,
+                    materialIdContext,
+                    "MaterialID - Translucent");
+            }
+        }
 
         if (m_ui.EnableProceduralSky)
             m_SkyPass->Render(m_CommandList, *m_View, *m_SunLight, m_ui.SkyParams);
 
         if (m_ui.EnableTranslucency)
         {
-            RenderCompositeView(m_CommandList,
-                m_View.get(), m_ViewPrevious.get(),
-                *m_RenderTargets->MaterialIDFramebuffer,
-                m_Scene->GetSceneGraph()->GetRootNode(),
-                *m_TransparentDrawStrategy,
-                *m_MaterialIDPass,
-                materialIdContext,
-                "MaterialID - Translucent");
-
             RenderCompositeView(m_CommandList,
                 m_View.get(), m_ViewPrevious.get(),
                 *m_RenderTargets->ForwardFramebuffer,
@@ -740,8 +760,6 @@ public:
 
         m_CommonPasses->BlitTexture(m_CommandList, framebuffer, m_RenderTargets->LdrColor, m_BindingCache.get());
 
-        //m_CommonPasses->BlitTexture(m_CommandList, framebuffer, m_RenderTargets->HdrColor, m_BindingCache.get());
-
         if (m_ui.DisplayShadowMap)
         {
             for (int cascade = 0; cascade < 4; cascade++)
@@ -766,6 +784,8 @@ public:
         GetDevice()->executeCommandList(m_CommandList);
 
         std::swap(m_View, m_ViewPrevious);
+
+        GetDeviceManager()->SetVsyncEnabled(m_ui.EnableVsync);
     }
 
     std::shared_ptr<Scene>& GetScene()

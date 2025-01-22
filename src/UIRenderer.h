@@ -20,6 +20,7 @@ struct UIData
     SkyParameters                       SkyParams;
     bool                                EnableSsao = true;
     bool                                EnableFXAA = true;
+    bool                                UseDeferredShading = true;
     SsaoParameters                      SsaoParams;
     ToneMappingParameters               ToneMappingParams;
     bool                                EnableVsync = true;
@@ -40,6 +41,7 @@ struct UIData
     bool SceneLoadedStatus = false;
     std::vector<std::shared_ptr<engine::Light>> lights;
     std::vector<std::shared_ptr<engine::LightProbe>> LightProbes;
+    std::function<void(LightProbe& probe)> m_RenderCallback;
 
 };
 
@@ -49,7 +51,6 @@ private:
     std::shared_ptr<engine::Light> m_SelectedLight;
     UIData& m_ui;
     nvrhi::CommandListHandle m_CommandList;
-    std::function<void(LightProbe& probe)> m_RenderCallback;
 
 public:
     UIRenderer(DeviceManager* deviceManager, UIData& ui);
