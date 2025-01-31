@@ -1,4 +1,5 @@
 // by YupCore & yabadabu(https://github.com/yabadabu)
+// https://en.wikipedia.org/wiki/Rec._709
 Texture2D txYUV : register(t0);
 SamplerState samLinear : register(s0);
 

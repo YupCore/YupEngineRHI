@@ -30,6 +30,7 @@
 #include <nvrhi/common/misc.h>
 #include <donut/render/DepthPass.h>
 #include <donut/engine/Scene.h>
+#include <bitset>
 
 #ifdef DONUT_WITH_TASKFLOW
 #include <taskflow/taskflow.hpp>
@@ -272,7 +273,7 @@ public:
     {
         if (!m_VideoRenderer->EOV)
         {
-            m_VideoRenderer->UninitFFMPEG();
+            //m_VideoRenderer->UninitFFMPEG();
             SetSplashScreenFinished(true);
         }
 
@@ -308,6 +309,7 @@ public:
             auto endTime = high_resolution_clock::now();
             auto duration = duration_cast<milliseconds>(endTime - startTime).count();
             log::info("Scene loading time: %llu ms", duration);
+            SetSplashScreenFinished(true);
 
             return true;
         }
@@ -450,7 +452,6 @@ public:
         m_ToneMappingPass = std::make_unique<ToneMappingPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_RenderTargets->LdrFramebuffer, *m_View, toneMappingParams);
 
         m_BloomPass = std::make_unique<BloomPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_RenderTargets->ResolvedFramebuffer, *m_View);
-
         m_FXAAPass = std::make_unique<FXAAPass>(
             GetDevice(),
             m_ShaderFactory,
@@ -458,7 +459,6 @@ public:
             m_RenderTargets->HdrFramebuffer,
             *m_View
         );
-
         m_YUVPass = std::make_shared<FullScreenYUVPass>(
             GetDevice(),
             m_ShaderFactory,
@@ -515,7 +515,7 @@ public:
 
         if (m_VideoRenderer->EOV || (IsSceneLoaded() && m_skipSplash))
         {
-            m_VideoRenderer->UninitFFMPEG();
+            //m_VideoRenderer->UninitFFMPEG();
             SetSplashScreenFinished(true);
         }
     }
@@ -1051,8 +1051,8 @@ int main(int __argc, const char** __argv)
     {
         UIData uiData;
 
-        std::shared_ptr<YupEngine> engine = std::make_shared<YupEngine>(deviceManager, uiData);
-        std::shared_ptr<UIRenderer> gui = std::make_shared<UIRenderer>(
+        std::unique_ptr<YupEngine> engine = std::make_unique<YupEngine>(deviceManager, uiData);
+        std::unique_ptr<UIRenderer> gui = std::make_unique<UIRenderer>(
             deviceManager,
             uiData
         );

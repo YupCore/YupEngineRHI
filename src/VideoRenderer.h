@@ -8,14 +8,11 @@ struct AVCodecContext;
 struct SwrContext;
 struct AVPacket;
 struct AVCodecContext;
-struct SwsContext;
 struct AVFrame;
 struct AVIOContext;
 
 namespace donut::engine
 {
-	class ShaderFactory;
-	class CommonRenderPasses;
 	class FramebufferFactory;
 }
 
@@ -30,11 +27,10 @@ class VideoRenderer
 	friend void decodeAudioFrame(AVPacket* packet, AVCodecContext* audioCodecCtx, SwrContext* swrCtx, int outChannels, int outSampleRate);
 public:
 	VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::vfs::IFileSystem> filesystem, std::string videoPath);
-	~VideoRenderer();
 
 	void PresentFrame(const std::shared_ptr<donut::engine::FramebufferFactory>& framebufferFactory, nvrhi::CommandListHandle commandList);
 
-	void UninitFFMPEG();
+	//void UninitFFMPEG();
 
 	bool EOV;
 	nvrhi::TextureHandle m_dynamicYUVSource;

@@ -398,11 +398,6 @@ VideoRenderer::VideoRenderer(nvrhi::DeviceHandle device, std::shared_ptr<donut::
     }
 }
 
-VideoRenderer::~VideoRenderer()
-{
-    UninitFFMPEG();
-}
-
 void VideoRenderer::PresentFrame(const std::shared_ptr<donut::engine::FramebufferFactory>& framebufferFactory,
     nvrhi::CommandListHandle commandList) {
 
@@ -466,28 +461,28 @@ void VideoRenderer::PresentFrame(const std::shared_ptr<donut::engine::Framebuffe
     std::this_thread::sleep_for(delay);
 }
 
-void VideoRenderer::UninitFFMPEG()
-{
-    m_streamedSoundChannel->stop();
-
-    if (m_streamedSound)
-    {
-        m_streamedSound->release();
-    }
-
-    av_packet_free(&packet);
-    while (!videoFrameQueue.empty())
-    {
-        auto& frame = videoFrameQueue.front().first;
-        av_frame_free(&frame);
-        videoFrameQueue.pop();
-    }
-    while (!audioBufferQueue.empty())
-        audioBufferQueue.clear();
-    swr_free(&swrCtx);
-    delete bufferContext;
-    avcodec_free_context(&videoCodecCtx);
-    avcodec_free_context(&audioCodecCtx);
-    avformat_close_input(&formatCtx);
-    avio_context_free(&avioCtx);
-}
+//void VideoRenderer::UninitFFMPEG()
+//{
+//    m_streamedSoundChannel->stop();
+//
+//    if (m_streamedSound)
+//    {
+//        m_streamedSound->release();
+//    }
+//
+//    av_packet_free(&packet);
+//    while (!videoFrameQueue.empty())
+//    {
+//        auto& frame = videoFrameQueue.front().first;
+//        av_frame_free(&frame);
+//        videoFrameQueue.pop();
+//    }
+//    while (!audioBufferQueue.empty())
+//        audioBufferQueue.clear();
+//    swr_free(&swrCtx);
+//    delete bufferContext;
+//    avcodec_free_context(&videoCodecCtx);
+//    avcodec_free_context(&audioCodecCtx);
+//    avformat_close_input(&formatCtx);
+//    avio_context_free(&avioCtx);
+//}
