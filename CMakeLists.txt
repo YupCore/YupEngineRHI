@@ -5,9 +5,9 @@ if (POLICY CMP0079)
     cmake_policy(SET CMP0079 NEW) # Allows linking libraries from other directories
 endif()
 
-if (POLICY CMP0141)
-    cmake_policy(SET CMP0141 NEW)
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+if(MSVC)
+    # Disable debugging information in Release mode
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<CONFIG:Release,MinSizeRel>,None,$<IF:$<CONFIG:Debug,RelWithDebInfo>,ProgramDatabase>>")
 endif()
 
 project("YupEngineRHI")
@@ -36,22 +36,29 @@ set(FFMPEG_ROOT "${CMAKE_SOURCE_DIR}/Libraries/ffmpeg")
 # Include FFmpeg headers
 include_directories("${FFMPEG_ROOT}/include")
 
+# Set build type specific flags and definitions
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(YUP_ENGINE_BUILD_DEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0") # Debug flags
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(YUP_ENGINE_BUILD_RELEASE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG") # Release optimizations
+
 endif()
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /DYUP_ENGINE_BUILD_DEBUG")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /DYUP_ENGINE_BUILD_RELEASE")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /DYUP_ENGINE_BUILD_DEBUG /Zi /Od")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /DYUP_ENGINE_BUILD_RELEASE /O2 /Ob2 /DNDEBUG")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /DYUP_ENGINE_BUILD_DEBUG -g -O0")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /DYUP_ENGINE_BUILD_RELEASE -O3 -DNDEBUG")
 endif()
 
 # Add source files to the main executable
 # Full library paths
 if(MSVC)
     add_compile_definitions(YUP_ENGINE_PLATFORM_WINDOWS)
-    add_executable(YupEngineRHI WIN32 ${YupEngineRHI_src} "src/VideoRenderer.h" "src/VideoRenderer.cpp" "src/FullScreenYUV.cpp" "src/FullScreenYUV.h")
+    add_executable(YupEngineRHI WIN32 ${YupEngineRHI_src})
     set(FMOD_ROOT "${CMAKE_SOURCE_DIR}/Libraries/fmod/win")
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
        set(FMOD_LIBRARIES
@@ -121,7 +128,6 @@ target_link_directories(FMOD_LIBS INTERFACE ${FMOD_LIBRARY_PATHS})
 target_link_libraries(FMOD_LIBS INTERFACE ${FMOD_LIBRARIES})
 
 file(GLOB FFMPEG_LIBRARIES "${FFMPEG_LIB_DIR}/lib*.a")
-
 
 # Link against Donut libraries
 target_link_libraries(YupEngineRHI donut_app donut_engine donut_render ${FMOD_LIBRARIES} ${SYSTEM_LIBRARIES} ${FFMPEG_LIBRARIES})

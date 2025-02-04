@@ -203,7 +203,7 @@ public:
         CreateRenderPasses(nop);
 
         AudioEngine::InitEngine(m_ZipFS);
-        m_VideoRenderer = std::make_unique<VideoRenderer>(GetDevice(), m_ZipFS, "Videos/Intro_Test.mkv");
+        m_VideoRenderer = std::make_unique<VideoRenderer>(GetDevice(), m_ZipFS, "Videos/vBB4XMYjbP1jDRQv.mkv");
         GetDeviceManager()->SetEnableRenderDuringWindowMovement(true);
 
         m_SceneDir = "Models";
@@ -309,7 +309,6 @@ public:
             auto endTime = high_resolution_clock::now();
             auto duration = duration_cast<milliseconds>(endTime - startTime).count();
             log::info("Scene loading time: %llu ms", duration);
-            SetSplashScreenFinished(true);
 
             return true;
         }
